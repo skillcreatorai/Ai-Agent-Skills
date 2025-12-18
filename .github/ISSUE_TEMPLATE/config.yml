@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Browse Skills
+    url: https://skillcreator.ai/discover
+    about: Find and install skills from our gallery
+  - name: Create a Skill
+    url: https://skillcreator.ai/build
+    about: Generate a custom skill in 30 seconds
+  - name: Follow Updates
+    url: https://x.com/skillcreatorai
+    about: Get notified about new skills and features

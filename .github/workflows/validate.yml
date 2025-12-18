@@ -1,0 +1,53 @@
+name: Validate Skills
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate skills.json
+        run: |
+          echo "Validating skills.json..."
+          python3 -c "import json; json.load(open('skills.json'))"
+          echo "✓ skills.json is valid JSON"
+
+      - name: Check skill folders
+        run: |
+          echo "Checking skill folders..."
+          for skill in skills/*/; do
+            if [ -f "${skill}SKILL.md" ]; then
+              echo "✓ ${skill}SKILL.md exists"
+            else
+              echo "✗ Missing SKILL.md in ${skill}"
+              exit 1
+            fi
+          done
+
+      - name: Validate SKILL.md frontmatter
+        run: |
+          echo "Validating frontmatter..."
+          for skill in skills/*/SKILL.md; do
+            if head -1 "$skill" | grep -q "^---"; then
+              echo "✓ $skill has frontmatter"
+            else
+              echo "✗ $skill missing frontmatter"
+              exit 1
+            fi
+          done
+
+      - name: Count skills
+        run: |
+          count=$(ls -d skills/*/ | wc -l | tr -d ' ')
+          json_count=$(python3 -c "import json; print(json.load(open('skills.json'))['total'])")
+          echo "Folder count: $count"
+          echo "JSON total: $json_count"
+          if [ "$count" != "$json_count" ]; then
+            echo "⚠ Warning: Skill count mismatch"
+          fi

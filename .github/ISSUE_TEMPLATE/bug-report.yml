@@ -1,0 +1,41 @@
+name: Bug Report
+description: Report an issue with a skill
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: input
+    id: skill
+    attributes:
+      label: Skill Name
+      description: Which skill has the issue?
+      placeholder: e.g., frontend-design
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should have happened?
+
+  - type: input
+    id: agent
+    attributes:
+      label: Agent
+      description: Which AI agent are you using?
+      placeholder: e.g., Claude Code, Cursor, Amp
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Any error messages or output
+      render: shell

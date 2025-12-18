@@ -1,0 +1,54 @@
+name: Skill Request
+description: Request a new skill to be added
+title: "[Skill Request] "
+labels: ["skill-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a skill! We review all requests.
+
+  - type: input
+    id: skill-name
+    attributes:
+      label: Skill Name
+      description: What should this skill be called?
+      placeholder: e.g., slack-automation
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What should this skill do?
+      description: Describe the use case and functionality
+      placeholder: |
+        I want a skill that can...
+
+        Use cases:
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - Development
+        - Documents
+        - Creative
+        - Productivity
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example prompts
+      description: How would you use this skill?
+      placeholder: |
+        "Create a Slack message to #engineering about the deployment"
+        "Summarize this channel's messages from today"
