@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/skills-38-blue?style=flat-square" alt="Skills" />
+  <img src="https://img.shields.io/badge/skills-39-blue?style=flat-square" alt="Skills" />
   <img src="https://img.shields.io/badge/agents-10+-green?style=flat-square" alt="Compatible Agents" />
   <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" alt="License" />
   <img src="https://img.shields.io/npm/v/ai-agent-skills?style=flat-square&color=red" alt="npm" />
@@ -99,6 +99,7 @@ Works with **Claude Code**, **Cursor**, **Amp**, **VS Code**, **GitHub Copilot**
 ### Productivity
 | Skill | Description |
 |-------|-------------|
+| `doc-coauthoring` | Co-author docs, proposals, specs with structured workflow |
 | `job-application` | Cover letters and applications using your CV |
 | `qa-regression` | Automated regression testing with Playwright |
 | `jira-issues` | Create, update, search Jira issues |

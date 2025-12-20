@@ -1,7 +1,7 @@
 {
-  "version": "1.0.6",
-  "updated": "2025-12-18T00:00:00Z",
-  "total": 38,
+  "version": "1.1.1",
+  "updated": "2025-12-20T00:00:00Z",
+  "total": 39,
   "skills": [
     {
       "name": "frontend-design",
@@ -91,6 +91,19 @@
       "path": "skills/skill-creator",
       "stars": 21600,
       "downloads": 980,
+      "featured": true,
+      "verified": true
+    },
+    {
+      "name": "doc-coauthoring",
+      "description": "Structured workflow for co-authoring documentation, proposals, technical specs, and decision docs. Three-stage process: context gathering, iterative refinement, and reader testing.",
+      "category": "productivity",
+      "author": "anthropics",
+      "source": "anthropics/skills",
+      "license": "Apache-2.0",
+      "path": "skills/doc-coauthoring",
+      "stars": 22400,
+      "downloads": 0,
       "featured": true,
       "verified": true
     },
