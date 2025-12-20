@@ -5,8 +5,8 @@
 </h1>
 
 <p align="center">
-  <strong>The universal skill repository for AI agents.</strong><br>
-  One command. Works everywhere.
+  <strong>Homebrew for AI agent skills.</strong><br>
+  One command. Ten agents. Skills that follow you.
 </p>
 
 <p align="center">
@@ -29,13 +29,23 @@
 ## Quick Start
 
 ```bash
-# Install for Claude Code (default)
+# Browse skills interactively
+npx ai-agent-skills browse
+
+# Install from our curated catalog
 npx ai-agent-skills install frontend-design
 
-# Install for other agents
+# Install for specific agents
 npx ai-agent-skills install frontend-design --agent cursor
-npx ai-agent-skills install frontend-design --agent codex (ps this currently only works if you run codex and --enable skills flag)
+npx ai-agent-skills install frontend-design --agent codex
 npx ai-agent-skills install frontend-design --agent amp
+
+# Install from any GitHub repo
+npx ai-agent-skills install anthropics/skills
+npx ai-agent-skills install anthropics/skills/pdf    # specific skill
+
+# Install from local path
+npx ai-agent-skills install ./my-custom-skill
 ```
 
 That's it. The skill installs to the right location for your agent automatically.
@@ -114,43 +124,32 @@ Works with **Claude Code**, **Cursor**, **Amp**, **VS Code**, **GitHub Copilot**
 ## Commands
 
 ```bash
+# Interactive browser (TUI)
+npx ai-agent-skills browse
+
 # List all available skills
 npx ai-agent-skills list
-
-# Filter by category
 npx ai-agent-skills list --category development
-
-# List installed skills for an agent
-npx ai-agent-skills list --installed
 npx ai-agent-skills list --installed --agent cursor
 
-# Install a skill (defaults to Claude Code)
-npx ai-agent-skills install <name>
+# Install from catalog, GitHub, or local path
+npx ai-agent-skills install <name>                    # from catalog
+npx ai-agent-skills install <owner/repo>              # from GitHub
+npx ai-agent-skills install <owner/repo/skill>        # specific skill from GitHub
+npx ai-agent-skills install ./path                    # from local path
+npx ai-agent-skills install <name> --agent cursor     # for specific agent
+npx ai-agent-skills install <name> --dry-run          # preview only
 
-# Preview what will be installed (dry run)
-npx ai-agent-skills install <name> --dry-run
-
-# Install for a specific agent
-npx ai-agent-skills install <name> --agent <agent>
-
-# Uninstall a skill
+# Manage installed skills
 npx ai-agent-skills uninstall <name>
-npx ai-agent-skills uninstall <name> --agent cursor
-
-# Update a skill to latest version
 npx ai-agent-skills update <name>
-
-# Update all installed skills
 npx ai-agent-skills update --all
 
-# Search skills by name, description, or tags
+# Discovery
 npx ai-agent-skills search <query>
-
-# Get skill details
 npx ai-agent-skills info <name>
 
-# Configure default settings
-npx ai-agent-skills config
+# Configuration
 npx ai-agent-skills config --default-agent cursor
 ```
 
@@ -215,6 +214,14 @@ We review all contributions for quality and spec compliance.
 - [Browse Skills](https://skillcreator.ai/discover) - Visual skill gallery with one-click install
 - [Create Skills](https://skillcreator.ai/build) - Generate skills from plain English
 - [Anthropic Skills](https://github.com/anthropics/skills) - Official example skills
+
+## See Also
+
+**[openskills](https://github.com/numman-ali/openskills)** - Requires global install, AGENTS.md sync, and Bash calls. Great for flexibility.
+
+**ai-agent-skills** - Just `npx`, installs to native agent folders. Homebrew for skills.
+
+---
 
 ## Credits & Attribution
 
