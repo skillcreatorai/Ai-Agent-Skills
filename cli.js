@@ -141,12 +141,32 @@ function getAvailableSkills() {
 
 // ============ ARGUMENT PARSING ============
 
+function normalizeAgents(rawAgents, validAgents, defaultAgent) {
+  const agents = [];
+  const addAgent = (name) => {
+    if (!name || !validAgents.includes(name)) return;
+    if (!agents.includes(name)) agents.push(name);
+  };
+
+  for (const raw of rawAgents) {
+    if (!raw) continue;
+    raw.split(',').forEach((part) => {
+      const cleaned = part.trim().replace(/^-+/, '');
+      addAgent(cleaned);
+    });
+  }
+
+  return agents.length > 0 ? agents : [defaultAgent];
+}
+
 function parseArgs(args) {
   const config = loadConfig();
+  const validAgents = Object.keys(AGENT_PATHS);
+  const defaultAgent = validAgents.includes(config.defaultAgent) ? config.defaultAgent : 'claude';
   const result = {
     command: null,
     param: null,
-    agent: config.defaultAgent || 'claude',
+    agents: [defaultAgent],
     installed: false,
     all: false,
     dryRun: false,
@@ -154,15 +174,16 @@ function parseArgs(args) {
     category: null
   };
 
-  const validAgents = Object.keys(AGENT_PATHS);
+  const rawAgents = [];
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
     if (arg === '--agent' || arg === '-a') {
-      let agentValue = args[i + 1] || 'claude';
-      agentValue = agentValue.replace(/^-+/, '');
-      result.agent = validAgents.includes(agentValue) ? agentValue : 'claude';
+      const agentValue = args[i + 1];
+      if (agentValue) {
+        rawAgents.push(agentValue);
+      }
       i++;
     }
     else if (arg === '--installed' || arg === '-i') {
@@ -185,7 +206,7 @@ function parseArgs(args) {
     else if (arg.startsWith('--')) {
       const potentialAgent = arg.replace(/^--/, '');
       if (validAgents.includes(potentialAgent)) {
-        result.agent = potentialAgent;
+        rawAgents.push(potentialAgent);
       } else if (!result.command) {
         result.command = arg;
       }
@@ -196,6 +217,8 @@ function parseArgs(args) {
       result.param = args[i];
     }
   }
+
+  result.agents = normalizeAgents(rawAgents, validAgents, defaultAgent);
 
   return result;
 }
@@ -255,7 +278,7 @@ function getDirectorySize(dir) {
 
 // ============ CORE COMMANDS ============
 
-function installSkill(skillName, agent = 'claude', dryRun = false) {
+function installSkill(skillName, agents = ['claude'], dryRun = false) {
   try {
     validateSkillName(skillName);
   } catch (e) {
@@ -263,6 +286,7 @@ function installSkill(skillName, agent = 'claude', dryRun = false) {
     return false;
   }
 
+  const targetAgents = Array.isArray(agents) ? agents : [agents];
   const sourcePath = path.join(SKILLS_DIR, skillName);
 
   if (!fs.existsSync(sourcePath)) {
@@ -281,38 +305,50 @@ function installSkill(skillName, agent = 'claude', dryRun = false) {
     return false;
   }
 
-  const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
-  const destPath = path.join(destDir, skillName);
   const skillSize = getDirectorySize(sourcePath);
 
   if (dryRun) {
     log(`\n${colors.bold}Dry Run${colors.reset} (no changes made)\n`);
     info(`Would install: ${skillName}`);
-    info(`Agent: ${agent}`);
+    info(`Agents: ${targetAgents.join(', ')}`);
     info(`Source: ${sourcePath}`);
-    info(`Destination: ${destPath}`);
     info(`Size: ${(skillSize / 1024).toFixed(1)} KB`);
 
-    if (fs.existsSync(destPath)) {
-      warn(`Note: Would overwrite existing installation`);
-    }
+    targetAgents.forEach((agent) => {
+      const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
+      const destPath = path.join(destDir, skillName);
+      info(`Destination (${agent}): ${destPath}`);
+      if (fs.existsSync(destPath)) {
+        warn(`Note: Would overwrite existing installation for ${agent}`);
+      }
+    });
     return true;
   }
 
   try {
-    if (!fs.existsSync(destDir)) {
-      fs.mkdirSync(destDir, { recursive: true });
-    }
+    const installedPaths = [];
 
-    copyDir(sourcePath, destPath);
+    targetAgents.forEach((agent) => {
+      const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
+      const destPath = path.join(destDir, skillName);
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
+      }
+      copyDir(sourcePath, destPath);
+      installedPaths.push({ agent, destPath });
+    });
 
     success(`\nInstalled: ${skillName}`);
-    info(`Agent: ${agent}`);
-    info(`Location: ${destPath}`);
+    info(`Agents: ${targetAgents.join(', ')}`);
+    installedPaths.forEach(({ agent, destPath }) => {
+      info(`Location (${agent}): ${destPath}`);
+    });
     info(`Size: ${(skillSize / 1024).toFixed(1)} KB`);
 
     log('');
-    showAgentInstructions(agent, skillName, destPath);
+    installedPaths.forEach(({ agent, destPath }) => {
+      showAgentInstructions(agent, skillName, destPath);
+    });
 
     return true;
   } catch (e) {
@@ -789,8 +825,9 @@ function expandPath(p) {
   return path.resolve(p);
 }
 
-async function installFromGitHub(source, agent = 'claude', dryRun = false) {
+async function installFromGitHub(source, agents = ['claude'], dryRun = false) {
   const { execSync } = require('child_process');
+  const targetAgents = Array.isArray(agents) ? agents : [agents];
 
   // Parse owner/repo format
   const parts = source.split('/');
@@ -810,7 +847,7 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
     log(`\n${colors.bold}Dry Run${colors.reset} (no changes made)\n`);
     info(`Would clone: ${repoUrl}`);
     info(`Would install ${skillName ? `skill: ${skillName}` : 'all skills from repo'}`);
-    info(`Agent: ${agent}`);
+    info(`Agents: ${targetAgents.join(', ')}`);
     return true;
   }
 
@@ -832,16 +869,23 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
         return false;
       }
 
-      const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
-      const destPath = path.join(destDir, skillName);
+      const installedPaths = [];
 
-      if (!fs.existsSync(destDir)) {
-        fs.mkdirSync(destDir, { recursive: true });
-      }
+      targetAgents.forEach((agent) => {
+        const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
+        const destPath = path.join(destDir, skillName);
+        if (!fs.existsSync(destDir)) {
+          fs.mkdirSync(destDir, { recursive: true });
+        }
+        copyDir(skillPath, destPath);
+        installedPaths.push({ agent, destPath });
+      });
 
-      copyDir(skillPath, destPath);
       success(`\nInstalled: ${skillName} from ${owner}/${repo}`);
-      info(`Location: ${destPath}`);
+      info(`Agents: ${targetAgents.join(', ')}`);
+      installedPaths.forEach(({ agent, destPath }) => {
+        info(`Location (${agent}): ${destPath}`);
+      });
     } else {
       // Install all skills from repo
       const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
@@ -851,14 +895,14 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
         if (entry.isDirectory()) {
           const skillPath = path.join(skillsDir, entry.name);
           if (fs.existsSync(path.join(skillPath, 'SKILL.md'))) {
-            const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
-            const destPath = path.join(destDir, entry.name);
-
-            if (!fs.existsSync(destDir)) {
-              fs.mkdirSync(destDir, { recursive: true });
-            }
-
-            copyDir(skillPath, destPath);
+            targetAgents.forEach((agent) => {
+              const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
+              const destPath = path.join(destDir, entry.name);
+              if (!fs.existsSync(destDir)) {
+                fs.mkdirSync(destDir, { recursive: true });
+              }
+              copyDir(skillPath, destPath);
+            });
             log(`  ${colors.green}✓${colors.reset} ${entry.name}`);
             installed++;
           }
@@ -867,6 +911,7 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
 
       if (installed > 0) {
         success(`\nInstalled ${installed} skill(s) from ${owner}/${repo}`);
+        info(`Agents: ${targetAgents.join(', ')}`);
       } else {
         warn('No skills found in repository');
       }
@@ -882,8 +927,9 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
   }
 }
 
-function installFromLocalPath(source, agent = 'claude', dryRun = false) {
+function installFromLocalPath(source, agents = ['claude'], dryRun = false) {
   const sourcePath = expandPath(source);
+  const targetAgents = Array.isArray(agents) ? agents : [agents];
 
   if (!fs.existsSync(sourcePath)) {
     error(`Path not found: ${sourcePath}`);
@@ -902,23 +948,29 @@ function installFromLocalPath(source, agent = 'claude', dryRun = false) {
   if (dryRun) {
     log(`\n${colors.bold}Dry Run${colors.reset} (no changes made)\n`);
     info(`Would install from: ${sourcePath}`);
-    info(`Agent: ${agent}`);
+    info(`Agents: ${targetAgents.join(', ')}`);
     return true;
   }
 
   if (hasSkillMd) {
     // Single skill
     const skillName = path.basename(sourcePath);
-    const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
-    const destPath = path.join(destDir, skillName);
+    const installedPaths = [];
 
-    if (!fs.existsSync(destDir)) {
-      fs.mkdirSync(destDir, { recursive: true });
-    }
-
-    copyDir(sourcePath, destPath);
+    targetAgents.forEach((agent) => {
+      const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
+      const destPath = path.join(destDir, skillName);
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
+      }
+      copyDir(sourcePath, destPath);
+      installedPaths.push({ agent, destPath });
+    });
     success(`\nInstalled: ${skillName} from local path`);
-    info(`Location: ${destPath}`);
+    info(`Agents: ${targetAgents.join(', ')}`);
+    installedPaths.forEach(({ agent, destPath }) => {
+      info(`Location (${agent}): ${destPath}`);
+    });
   } else {
     // Directory of skills
     const entries = fs.readdirSync(sourcePath, { withFileTypes: true });
@@ -928,14 +980,14 @@ function installFromLocalPath(source, agent = 'claude', dryRun = false) {
       if (entry.isDirectory()) {
         const skillPath = path.join(sourcePath, entry.name);
         if (fs.existsSync(path.join(skillPath, 'SKILL.md'))) {
-          const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
-          const destPath = path.join(destDir, entry.name);
-
-          if (!fs.existsSync(destDir)) {
-            fs.mkdirSync(destDir, { recursive: true });
-          }
-
-          copyDir(skillPath, destPath);
+          targetAgents.forEach((agent) => {
+            const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
+            const destPath = path.join(destDir, entry.name);
+            if (!fs.existsSync(destDir)) {
+              fs.mkdirSync(destDir, { recursive: true });
+            }
+            copyDir(skillPath, destPath);
+          });
           log(`  ${colors.green}✓${colors.reset} ${entry.name}`);
           installed++;
         }
@@ -944,6 +996,7 @@ function installFromLocalPath(source, agent = 'claude', dryRun = false) {
 
     if (installed > 0) {
       success(`\nInstalled ${installed} skill(s) from local path`);
+      info(`Agents: ${targetAgents.join(', ')}`);
     } else {
       warn('No skills found in directory');
     }
@@ -980,7 +1033,7 @@ ${colors.bold}Commands:${colors.reset}
   ${colors.green}help${colors.reset}                             Show this help
 
 ${colors.bold}Options:${colors.reset}
-  ${colors.cyan}--agent <name>${colors.reset}   Target agent (default: claude)
+  ${colors.cyan}--agent <name[,name...]>${colors.reset}   Target agent(s) (default: claude)
   ${colors.cyan}--installed${colors.reset}      Show only installed skills (with list)
   ${colors.cyan}--dry-run, -n${colors.reset}    Preview changes without applying
   ${colors.cyan}--category <c>${colors.reset}   Filter by category
@@ -1008,6 +1061,7 @@ ${colors.bold}Examples:${colors.reset}
   npx ai-agent-skills install anthropics/skills/pdf       # Install specific skill from GitHub
   npx ai-agent-skills install ./my-skill                  # Install from local path
   npx ai-agent-skills install pdf --agent cursor          # Install for Cursor
+  npx ai-agent-skills install pdf --agent codex,cursor    # Install for multiple agents
   npx ai-agent-skills install pdf --dry-run               # Preview install
   npx ai-agent-skills list --category development
   npx ai-agent-skills search testing
@@ -1102,7 +1156,8 @@ function setConfig(key, value) {
 // ============ MAIN CLI ============
 
 const args = process.argv.slice(2);
-const { command, param, agent, installed, dryRun, category, tags, all } = parseArgs(args);
+const { command, param, agents, installed, dryRun, category, tags, all } = parseArgs(args);
+const primaryAgent = agents[0];
 
 // Handle config commands specially
 if (command === 'config') {
@@ -1127,13 +1182,16 @@ if (command === 'config') {
 switch (command || 'help') {
   case 'browse':
   case 'b':
-    browseSkills(agent);
+    browseSkills(primaryAgent);
     break;
 
   case 'list':
   case 'ls':
     if (installed) {
-      listInstalledSkills(agent);
+      agents.forEach((agent, index) => {
+        if (index > 0) log('');
+        listInstalledSkills(agent);
+      });
     } else {
       listSkills(category, tags);
     }
@@ -1144,16 +1202,16 @@ switch (command || 'help') {
   case 'add':
     if (!param) {
       error('Please specify a skill name, GitHub repo, or local path.');
-      log('Usage: npx ai-agent-skills install <skill-name|owner/repo|./path> [--agent <agent>] [--dry-run]');
+      log('Usage: npx ai-agent-skills install <skill-name|owner/repo|./path> [--agent <agent[,agent...]>] [--dry-run]');
       process.exit(1);
     }
     // Smart detection: GitHub URL, local path, or catalog skill
     if (isLocalPath(param)) {
-      installFromLocalPath(param, agent, dryRun);
+      installFromLocalPath(param, agents, dryRun);
     } else if (isGitHubUrl(param)) {
-      installFromGitHub(param, agent, dryRun);
+      installFromGitHub(param, agents, dryRun);
     } else {
-      installSkill(param, agent, dryRun);
+      installSkill(param, agents, dryRun);
     }
     break;
 
@@ -1162,23 +1220,32 @@ switch (command || 'help') {
   case 'rm':
     if (!param) {
       error('Please specify a skill name.');
-      log('Usage: npx ai-agent-skills uninstall <skill-name> [--agent <agent>]');
+      log('Usage: npx ai-agent-skills uninstall <skill-name> [--agent <agent[,agent...]>]');
       process.exit(1);
     }
-    uninstallSkill(param, agent, dryRun);
+    agents.forEach((agent, index) => {
+      if (index > 0) log('');
+      uninstallSkill(param, agent, dryRun);
+    });
     break;
 
   case 'update':
   case 'upgrade':
     if (all) {
-      updateAllSkills(agent, dryRun);
+      agents.forEach((agent, index) => {
+        if (index > 0) log('');
+        updateAllSkills(agent, dryRun);
+      });
     } else if (!param) {
       error('Please specify a skill name or use --all.');
-      log('Usage: npx ai-agent-skills update <skill-name> [--agent <agent>]');
-      log('       npx ai-agent-skills update --all [--agent <agent>]');
+      log('Usage: npx ai-agent-skills update <skill-name> [--agent <agent[,agent...]>]');
+      log('       npx ai-agent-skills update --all [--agent <agent[,agent...]>]');
       process.exit(1);
     } else {
-      updateSkill(param, agent, dryRun);
+      agents.forEach((agent, index) => {
+        if (index > 0) log('');
+        updateSkill(param, agent, dryRun);
+      });
     }
     break;
 
@@ -1212,7 +1279,7 @@ switch (command || 'help') {
   default:
     // If command looks like a skill name, try to install it
     if (getAvailableSkills().includes(command)) {
-      installSkill(command, agent, dryRun);
+      installSkill(command, agents, dryRun);
     } else {
       error(`Unknown command: ${command}`);
       showHelp();
