@@ -39,6 +39,7 @@ npx ai-agent-skills install frontend-design
 npx ai-agent-skills install frontend-design --agent cursor
 npx ai-agent-skills install frontend-design --agent codex
 npx ai-agent-skills install frontend-design --agent amp
+npx ai-agent-skills install frontend-design --agent codex,cursor
 
 # Install from any GitHub repo
 npx ai-agent-skills install anthropics/skills
@@ -131,6 +132,7 @@ npx ai-agent-skills browse
 npx ai-agent-skills list
 npx ai-agent-skills list --category development
 npx ai-agent-skills list --installed --agent cursor
+npx ai-agent-skills list --installed --agent cursor,codex
 
 # Install from catalog, GitHub, or local path
 npx ai-agent-skills install <name>                    # from catalog
@@ -138,6 +140,7 @@ npx ai-agent-skills install <owner/repo>              # from GitHub
 npx ai-agent-skills install <owner/repo/skill>        # specific skill from GitHub
 npx ai-agent-skills install ./path                    # from local path
 npx ai-agent-skills install <name> --agent cursor     # for specific agent
+npx ai-agent-skills install <name> --agent cursor,codex
 npx ai-agent-skills install <name> --dry-run          # preview only
 
 # Manage installed skills
