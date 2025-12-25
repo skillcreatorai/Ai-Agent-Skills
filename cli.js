@@ -823,6 +823,9 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
       ? path.join(tempDir, 'skills')
       : tempDir;
 
+    // Check if repo root IS a skill (has SKILL.md at root)
+    const isRootSkill = fs.existsSync(path.join(tempDir, 'SKILL.md'));
+
     if (skillName) {
       // Install specific skill
       const skillPath = path.join(skillsDir, skillName);
@@ -840,6 +843,19 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
       }
 
       copyDir(skillPath, destPath);
+      success(`\nInstalled: ${skillName} from ${owner}/${repo}`);
+      info(`Location: ${destPath}`);
+    } else if (isRootSkill) {
+      // Repo itself is a single skill
+      const skillName = repo;
+      const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
+      const destPath = path.join(destDir, skillName);
+
+      if (!fs.existsSync(destDir)) {
+        fs.mkdirSync(destDir, { recursive: true });
+      }
+
+      copyDir(tempDir, destPath);
       success(`\nInstalled: ${skillName} from ${owner}/${repo}`);
       info(`Location: ${destPath}`);
     } else {
