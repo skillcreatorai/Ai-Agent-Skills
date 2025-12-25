@@ -999,6 +999,7 @@ ${colors.bold}Commands:${colors.reset}
   ${colors.green}search <query>${colors.reset}                   Search skills by name, description, or tags
   ${colors.green}info <name>${colors.reset}                      Show skill details
   ${colors.green}config${colors.reset}                           Show/edit configuration
+  ${colors.green}version${colors.reset}                          Show version number
   ${colors.green}help${colors.reset}                             Show this help
 
 ${colors.bold}Options:${colors.reset}
@@ -1007,6 +1008,7 @@ ${colors.bold}Options:${colors.reset}
   ${colors.cyan}--dry-run, -n${colors.reset}    Preview changes without applying
   ${colors.cyan}--category <c>${colors.reset}   Filter by category
   ${colors.cyan}--all${colors.reset}            Apply to all (with update)
+  ${colors.cyan}--version, -v${colors.reset}    Show version number
 
 ${colors.bold}Agents:${colors.reset}
   ${colors.cyan}claude${colors.reset}   (default) ~/.claude/skills/
