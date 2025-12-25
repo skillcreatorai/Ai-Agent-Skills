@@ -211,7 +211,13 @@ function copyDir(src, dest, currentSize = { total: 0 }) {
 
     const entries = fs.readdirSync(src, { withFileTypes: true });
 
+    // Files/folders to skip during copy
+    const skipList = ['.git', '.github', 'node_modules', '.DS_Store'];
+
     for (const entry of entries) {
+      // Skip unnecessary files/folders
+      if (skipList.includes(entry.name)) continue;
+
       const srcPath = path.join(src, entry.name);
       const destPath = path.join(dest, entry.name);
 
@@ -1223,6 +1229,13 @@ switch (command || 'help') {
   case '--help':
   case '-h':
     showHelp();
+    break;
+
+  case 'version':
+  case '--version':
+  case '-v':
+    const pkg = require('./package.json');
+    log(`ai-agent-skills v${pkg.version}`);
     break;
 
   default:

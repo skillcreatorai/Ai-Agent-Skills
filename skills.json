@@ -1,6 +1,6 @@
 {
-  "version": "1.2.0",
-  "updated": "2025-12-20T00:00:00Z",
+  "version": "1.2.1",
+  "updated": "2025-12-25T00:00:00Z",
   "total": 39,
   "skills": [
     {
@@ -516,7 +516,7 @@
       "id": "development",
       "name": "Development",
       "description": "Coding and software development skills",
-      "count": 12
+      "count": 13
     },
     {
       "id": "document",
@@ -528,19 +528,19 @@
       "id": "creative",
       "name": "Creative",
       "description": "Design and creative skills",
-      "count": 2
+      "count": 6
     },
     {
       "id": "business",
       "name": "Business",
       "description": "Business and communication skills",
-      "count": 2
+      "count": 5
     },
     {
       "id": "productivity",
       "name": "Productivity",
       "description": "Productivity and workflow skills",
-      "count": 3
+      "count": 11
     }
   ]
 }
