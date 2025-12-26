@@ -143,10 +143,14 @@ function getAvailableSkills() {
 
 function parseArgs(args) {
   const config = loadConfig();
+  const validAgents = Object.keys(AGENT_PATHS);
+  const defaultAgent = config.defaultAgent || 'claude';
+
   const result = {
     command: null,
     param: null,
-    agent: config.defaultAgent || 'claude',
+    agents: [],           // New: array of agents
+    allAgents: false,     // New: --all-agents flag
     installed: false,
     all: false,
     dryRun: false,
@@ -154,16 +158,32 @@ function parseArgs(args) {
     category: null
   };
 
-  const validAgents = Object.keys(AGENT_PATHS);
-
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
-    if (arg === '--agent' || arg === '-a') {
-      let agentValue = args[i + 1] || 'claude';
-      agentValue = agentValue.replace(/^-+/, '');
-      result.agent = validAgents.includes(agentValue) ? agentValue : 'claude';
+    // --agents claude,cursor,codex (multiple agents)
+    if (arg === '--agents') {
+      const value = args[i + 1] || '';
+      value.split(',').forEach(a => {
+        const agent = a.trim();
+        if (validAgents.includes(agent) && !result.agents.includes(agent)) {
+          result.agents.push(agent);
+        }
+      });
       i++;
+    }
+    // --agent cursor (single agent, backward compatible)
+    else if (arg === '--agent' || arg === '-a') {
+      let agentValue = args[i + 1] || defaultAgent;
+      agentValue = agentValue.replace(/^-+/, '');
+      if (validAgents.includes(agentValue) && !result.agents.includes(agentValue)) {
+        result.agents.push(agentValue);
+      }
+      i++;
+    }
+    // --all-agents (install to all known agents)
+    else if (arg === '--all-agents') {
+      result.allAgents = true;
     }
     else if (arg === '--installed' || arg === '-i') {
       result.installed = true;
@@ -185,7 +205,9 @@ function parseArgs(args) {
     else if (arg.startsWith('--')) {
       const potentialAgent = arg.replace(/^--/, '');
       if (validAgents.includes(potentialAgent)) {
-        result.agent = potentialAgent;
+        if (!result.agents.includes(potentialAgent)) {
+          result.agents.push(potentialAgent);
+        }
       } else if (!result.command) {
         result.command = arg;
       }
@@ -195,6 +217,17 @@ function parseArgs(args) {
     } else if (!result.param) {
       result.param = args[i];
     }
+  }
+
+  // Resolve final agents list
+  if (result.allAgents) {
+    result.agents = [...validAgents];
+  } else if (result.agents.length === 0) {
+    // Use config agents or default
+    const configAgents = config.agents && config.agents.length > 0
+      ? config.agents.filter(a => validAgents.includes(a))
+      : [];
+    result.agents = configAgents.length > 0 ? configAgents : [defaultAgent];
   }
 
   return result;
@@ -1036,12 +1069,14 @@ ${colors.bold}Commands:${colors.reset}
   ${colors.green}help${colors.reset}                             Show this help
 
 ${colors.bold}Options:${colors.reset}
-  ${colors.cyan}--agent <name>${colors.reset}   Target agent (default: claude)
-  ${colors.cyan}--installed${colors.reset}      Show only installed skills (with list)
-  ${colors.cyan}--dry-run, -n${colors.reset}    Preview changes without applying
-  ${colors.cyan}--category <c>${colors.reset}   Filter by category
-  ${colors.cyan}--all${colors.reset}            Apply to all (with update)
-  ${colors.cyan}--version, -v${colors.reset}    Show version number
+  ${colors.cyan}--agent <name>${colors.reset}       Target single agent (default: claude)
+  ${colors.cyan}--agents <list>${colors.reset}      Target multiple agents (comma-separated)
+  ${colors.cyan}--all-agents${colors.reset}         Target ALL known agents at once
+  ${colors.cyan}--installed${colors.reset}          Show only installed skills (with list)
+  ${colors.cyan}--dry-run, -n${colors.reset}        Preview changes without applying
+  ${colors.cyan}--category <c>${colors.reset}       Filter by category
+  ${colors.cyan}--all${colors.reset}                Apply to all (with update)
+  ${colors.cyan}--version, -v${colors.reset}        Show version number
 
 ${colors.bold}Agents:${colors.reset}
   ${colors.cyan}claude${colors.reset}   (default) ~/.claude/skills/
@@ -1065,6 +1100,8 @@ ${colors.bold}Examples:${colors.reset}
   npx ai-agent-skills install anthropics/skills/pdf       # Install specific skill from GitHub
   npx ai-agent-skills install ./my-skill                  # Install from local path
   npx ai-agent-skills install pdf --agent cursor          # Install for Cursor
+  npx ai-agent-skills install pdf --agents claude,cursor  # Install for multiple agents
+  npx ai-agent-skills install pdf --all-agents            # Install for ALL agents
   npx ai-agent-skills install pdf --dry-run               # Preview install
   npx ai-agent-skills list --category development
   npx ai-agent-skills search testing
@@ -1127,21 +1164,32 @@ function showConfig() {
   log(`${colors.dim}File: ${CONFIG_FILE}${colors.reset}\n`);
 
   log(`${colors.bold}defaultAgent:${colors.reset} ${config.defaultAgent || 'claude'}`);
+  log(`${colors.bold}agents:${colors.reset}       ${config.agents ? config.agents.join(', ') : '(not set, uses defaultAgent)'}`);
   log(`${colors.bold}autoUpdate:${colors.reset}   ${config.autoUpdate || false}`);
 
-  log(`\n${colors.dim}Edit with: npx ai-agent-skills config --default-agent <agent>${colors.reset}`);
+  log(`\n${colors.dim}Set default agents: npx ai-agent-skills config --agents claude,cursor${colors.reset}`);
 }
 
 function setConfig(key, value) {
   const config = loadConfig();
+  const validAgents = Object.keys(AGENT_PATHS);
 
   if (key === 'default-agent' || key === 'defaultAgent') {
     if (!AGENT_PATHS[value]) {
       error(`Invalid agent: ${value}`);
-      log(`Valid agents: ${Object.keys(AGENT_PATHS).join(', ')}`);
+      log(`Valid agents: ${validAgents.join(', ')}`);
       return false;
     }
     config.defaultAgent = value;
+  } else if (key === 'agents') {
+    // Parse comma-separated agents list
+    const agentsList = value.split(',').map(a => a.trim()).filter(a => validAgents.includes(a));
+    if (agentsList.length === 0) {
+      error(`No valid agents in: ${value}`);
+      log(`Valid agents: ${validAgents.join(', ')}`);
+      return false;
+    }
+    config.agents = agentsList;
   } else if (key === 'auto-update' || key === 'autoUpdate') {
     config.autoUpdate = value === 'true' || value === true;
   } else {
@@ -1159,7 +1207,7 @@ function setConfig(key, value) {
 // ============ MAIN CLI ============
 
 const args = process.argv.slice(2);
-const { command, param, agent, installed, dryRun, category, tags, all } = parseArgs(args);
+const { command, param, agents, installed, dryRun, category, tags, all } = parseArgs(args);
 
 // Handle config commands specially
 if (command === 'config') {
@@ -1184,13 +1232,16 @@ if (command === 'config') {
 switch (command || 'help') {
   case 'browse':
   case 'b':
-    browseSkills(agent);
+    browseSkills(agents[0]);
     break;
 
   case 'list':
   case 'ls':
     if (installed) {
-      listInstalledSkills(agent);
+      for (let i = 0; i < agents.length; i++) {
+        if (i > 0) log('');
+        listInstalledSkills(agents[i]);
+      }
     } else {
       listSkills(category, tags);
     }
@@ -1201,16 +1252,18 @@ switch (command || 'help') {
   case 'add':
     if (!param) {
       error('Please specify a skill name, GitHub repo, or local path.');
-      log('Usage: npx ai-agent-skills install <skill-name|owner/repo|./path> [--agent <agent>] [--dry-run]');
+      log('Usage: npx ai-agent-skills install <name> [--agents claude,cursor] [--all-agents]');
       process.exit(1);
     }
-    // Smart detection: GitHub URL, local path, or catalog skill
-    if (isLocalPath(param)) {
-      installFromLocalPath(param, agent, dryRun);
-    } else if (isGitHubUrl(param)) {
-      installFromGitHub(param, agent, dryRun);
-    } else {
-      installSkill(param, agent, dryRun);
+    // Install to all specified agents
+    for (const agent of agents) {
+      if (isLocalPath(param)) {
+        installFromLocalPath(param, agent, dryRun);
+      } else if (isGitHubUrl(param)) {
+        installFromGitHub(param, agent, dryRun);
+      } else {
+        installSkill(param, agent, dryRun);
+      }
     }
     break;
 
@@ -1219,23 +1272,29 @@ switch (command || 'help') {
   case 'rm':
     if (!param) {
       error('Please specify a skill name.');
-      log('Usage: npx ai-agent-skills uninstall <skill-name> [--agent <agent>]');
+      log('Usage: npx ai-agent-skills uninstall <name> [--agents claude,cursor]');
       process.exit(1);
     }
-    uninstallSkill(param, agent, dryRun);
+    for (const agent of agents) {
+      uninstallSkill(param, agent, dryRun);
+    }
     break;
 
   case 'update':
   case 'upgrade':
     if (all) {
-      updateAllSkills(agent, dryRun);
+      for (const agent of agents) {
+        updateAllSkills(agent, dryRun);
+      }
     } else if (!param) {
       error('Please specify a skill name or use --all.');
-      log('Usage: npx ai-agent-skills update <skill-name> [--agent <agent>]');
-      log('       npx ai-agent-skills update --all [--agent <agent>]');
+      log('Usage: npx ai-agent-skills update <name> [--agents claude,cursor]');
+      log('       npx ai-agent-skills update --all [--agents claude,cursor]');
       process.exit(1);
     } else {
-      updateSkill(param, agent, dryRun);
+      for (const agent of agents) {
+        updateSkill(param, agent, dryRun);
+      }
     }
     break;
 
@@ -1276,7 +1335,9 @@ switch (command || 'help') {
   default:
     // If command looks like a skill name, try to install it
     if (getAvailableSkills().includes(command)) {
-      installSkill(command, agent, dryRun);
+      for (const agent of agents) {
+        installSkill(command, agent, dryRun);
+      }
     } else {
       error(`Unknown command: ${command}`);
       showHelp();
