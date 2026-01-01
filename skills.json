@@ -1,7 +1,7 @@
 {
   "version": "1.2.2",
-  "updated": "2025-12-25T00:00:00Z",
-  "total": 39,
+  "updated": "2026-01-01T00:00:00Z",
+  "total": 40,
   "skills": [
     {
       "name": "frontend-design",
@@ -316,6 +316,19 @@
       "verified": true
     },
     {
+      "name": "ask-questions-if-underspecified",
+      "description": "Clarify requirements before implementing. Ask 1-5 must-have questions to avoid wrong work. Use when requests are ambiguous, have multiple valid interpretations, or lack key details like scope, constraints, or acceptance criteria.",
+      "category": "productivity",
+      "author": "thsottiaux",
+      "source": "skillcreatorai/Ai-Agent-Skills",
+      "license": "MIT",
+      "path": "skills/ask-questions-if-underspecified",
+      "stars": 100,
+      "downloads": 0,
+      "featured": true,
+      "verified": true
+    },
+    {
       "name": "artifacts-builder",
       "description": "Create elaborate HTML artifacts using React, Tailwind CSS, and shadcn/ui. Use for building interactive web components and demos.",
       "category": "development",
@@ -540,7 +553,7 @@
       "id": "productivity",
       "name": "Productivity",
       "description": "Productivity and workflow skills",
-      "count": 11
+      "count": 12
     }
   ]
 }
