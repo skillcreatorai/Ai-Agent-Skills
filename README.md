@@ -29,16 +29,14 @@
 ## Quick Start
 
 ```bash
-# Browse skills interactively
-npx ai-agent-skills browse
-
-# Install from our curated catalog
+# Install a skill to ALL agents with one command
 npx ai-agent-skills install frontend-design
 
-# Install for specific agents
+# Install to a specific agent only
 npx ai-agent-skills install frontend-design --agent cursor
-npx ai-agent-skills install frontend-design --agent codex
-npx ai-agent-skills install frontend-design --agent amp
+
+# Browse skills interactively
+npx ai-agent-skills browse
 
 # Install from any GitHub repo
 npx ai-agent-skills install anthropics/skills
@@ -48,7 +46,7 @@ npx ai-agent-skills install anthropics/skills/pdf    # specific skill
 npx ai-agent-skills install ./my-custom-skill
 ```
 
-That's it. The skill installs to the right location for your agent automatically.
+**One command. Every agent.** By default, skills install to Claude Code, Cursor, Codex, Amp, VS Code, Copilot, Goose, Letta, and OpenCode simultaneously.
 
 ## Why This Exists
 
@@ -58,7 +56,7 @@ This repo curates the best in one place. Quality over quantity. All skills follo
 
 ## Compatible Agents
 
-Works with **Claude Code**, **Cursor**, **Amp**, **VS Code**, **GitHub Copilot**, **Goose**, **Letta**, **OpenCode**, and **Claude.ai**.
+Works with **Claude Code**, **Cursor**, **Codex**, **Amp**, **VS Code**, **GitHub Copilot**, **Goose**, **Letta**, and **OpenCode**.
 
 ## Available Skills
 
@@ -133,12 +131,11 @@ npx ai-agent-skills list
 npx ai-agent-skills list --category development
 npx ai-agent-skills list --installed --agent cursor
 
-# Install from catalog, GitHub, or local path
-npx ai-agent-skills install <name>                    # from catalog
-npx ai-agent-skills install <owner/repo>              # from GitHub
-npx ai-agent-skills install <owner/repo/skill>        # specific skill from GitHub
-npx ai-agent-skills install ./path                    # from local path
-npx ai-agent-skills install <name> --agent cursor     # for specific agent
+# Install (defaults to ALL agents)
+npx ai-agent-skills install <name>                    # installs to ALL agents
+npx ai-agent-skills install <name> --agent cursor     # install to specific agent only
+npx ai-agent-skills install <owner/repo>              # from GitHub (all agents)
+npx ai-agent-skills install ./path                    # from local path (all agents)
 npx ai-agent-skills install <name> --dry-run          # preview only
 
 # Manage installed skills
@@ -156,15 +153,17 @@ npx ai-agent-skills config --default-agent cursor
 
 ### Supported Agents
 
+By default, `install` targets **all agents**. Use `--agent <name>` to install to a specific one.
+
 | Agent | Flag | Install Location |
 |-------|------|------------------|
-| Claude Code | `--agent claude` (default) | `~/.claude/skills/` |
+| Claude Code | `--agent claude` | `~/.claude/skills/` |
 | Cursor | `--agent cursor` | `.cursor/skills/` |
+| Codex | `--agent codex` | `~/.codex/skills/` |
 | Amp | `--agent amp` | `~/.amp/skills/` |
 | VS Code / Copilot | `--agent vscode` | `.github/skills/` |
 | Goose | `--agent goose` | `~/.config/goose/skills/` |
-| OpenCode | `--agent opencode` | `~/.opencode/skills/` |
-| Codex | `--agent codex` | `~/.codex/skills/` |
+| OpenCode | `--agent opencode` | `~/.opencode/skill/` |
 | Letta | `--agent letta` | `~/.letta/skills/` |
 | Portable | `--agent project` | `.skills/` (works with any agent) |
 
