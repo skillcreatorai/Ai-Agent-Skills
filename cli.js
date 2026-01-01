@@ -151,6 +151,7 @@ function parseArgs(args) {
     param: null,
     agents: [],           // New: array of agents
     allAgents: false,     // New: --all-agents flag
+    explicitAgent: false, // Track if user explicitly specified agent(s)
     installed: false,
     all: false,
     dryRun: false,
@@ -163,6 +164,7 @@ function parseArgs(args) {
 
     // --agents claude,cursor,codex (multiple agents)
     if (arg === '--agents') {
+      result.explicitAgent = true;
       const value = args[i + 1] || '';
       value.split(',').forEach(a => {
         const agent = a.trim();
@@ -174,6 +176,7 @@ function parseArgs(args) {
     }
     // --agent cursor (single agent, backward compatible)
     else if (arg === '--agent' || arg === '-a') {
+      result.explicitAgent = true;
       let agentValue = args[i + 1] || defaultAgent;
       agentValue = agentValue.replace(/^-+/, '');
       if (validAgents.includes(agentValue) && !result.agents.includes(agentValue)) {
@@ -183,6 +186,7 @@ function parseArgs(args) {
     }
     // --all-agents (install to all known agents)
     else if (arg === '--all-agents') {
+      result.explicitAgent = true;
       result.allAgents = true;
     }
     else if (arg === '--installed' || arg === '-i') {
@@ -205,6 +209,7 @@ function parseArgs(args) {
     else if (arg.startsWith('--')) {
       const potentialAgent = arg.replace(/^--/, '');
       if (validAgents.includes(potentialAgent)) {
+        result.explicitAgent = true;
         if (!result.agents.includes(potentialAgent)) {
           result.agents.push(potentialAgent);
         }
@@ -1055,7 +1060,8 @@ ${colors.bold}Commands:${colors.reset}
   ${colors.green}list${colors.reset}                             List all available skills
   ${colors.green}list --installed${colors.reset}                 List installed skills for an agent
   ${colors.green}list --category <cat>${colors.reset}            Filter by category
-  ${colors.green}install <name>${colors.reset}                   Install a skill from catalog
+  ${colors.green}install <name>${colors.reset}                   Install to ALL agents (default)
+  ${colors.green}install <name> --agent cursor${colors.reset}    Install to specific agent only
   ${colors.green}install <owner/repo>${colors.reset}             Install from GitHub repository
   ${colors.green}install ./path${colors.reset}                   Install from local path
   ${colors.green}install <name> --dry-run${colors.reset}         Preview installation without changes
@@ -1069,9 +1075,8 @@ ${colors.bold}Commands:${colors.reset}
   ${colors.green}help${colors.reset}                             Show this help
 
 ${colors.bold}Options:${colors.reset}
-  ${colors.cyan}--agent <name>${colors.reset}       Target single agent (default: claude)
+  ${colors.cyan}--agent <name>${colors.reset}       Target specific agent (install defaults to ALL)
   ${colors.cyan}--agents <list>${colors.reset}      Target multiple agents (comma-separated)
-  ${colors.cyan}--all-agents${colors.reset}         Target ALL known agents at once
   ${colors.cyan}--installed${colors.reset}          Show only installed skills (with list)
   ${colors.cyan}--dry-run, -n${colors.reset}        Preview changes without applying
   ${colors.cyan}--category <c>${colors.reset}       Filter by category
@@ -1095,13 +1100,11 @@ ${colors.bold}Categories:${colors.reset}
 
 ${colors.bold}Examples:${colors.reset}
   npx ai-agent-skills browse                              # Interactive browser
-  npx ai-agent-skills install frontend-design             # Install from catalog
+  npx ai-agent-skills install frontend-design             # Install to ALL agents
+  npx ai-agent-skills install pdf --agent cursor          # Install to Cursor only
+  npx ai-agent-skills install pdf --agents claude,cursor  # Install to specific agents
   npx ai-agent-skills install anthropics/skills           # Install from GitHub
-  npx ai-agent-skills install anthropics/skills/pdf       # Install specific skill from GitHub
   npx ai-agent-skills install ./my-skill                  # Install from local path
-  npx ai-agent-skills install pdf --agent cursor          # Install for Cursor
-  npx ai-agent-skills install pdf --agents claude,cursor  # Install for multiple agents
-  npx ai-agent-skills install pdf --all-agents            # Install for ALL agents
   npx ai-agent-skills install pdf --dry-run               # Preview install
   npx ai-agent-skills list --category development
   npx ai-agent-skills search testing
@@ -1207,7 +1210,8 @@ function setConfig(key, value) {
 // ============ MAIN CLI ============
 
 const args = process.argv.slice(2);
-const { command, param, agents, installed, dryRun, category, tags, all } = parseArgs(args);
+const { command, param, agents, explicitAgent, installed, dryRun, category, tags, all } = parseArgs(args);
+const ALL_AGENTS = Object.keys(AGENT_PATHS);
 
 // Handle config commands specially
 if (command === 'config') {
@@ -1252,11 +1256,12 @@ switch (command || 'help') {
   case 'add':
     if (!param) {
       error('Please specify a skill name, GitHub repo, or local path.');
-      log('Usage: npx ai-agent-skills install <name> [--agents claude,cursor] [--all-agents]');
+      log('Usage: npx ai-agent-skills install <name> [--agent cursor]');
       process.exit(1);
     }
-    // Install to all specified agents
-    for (const agent of agents) {
+    // Default to ALL agents when no agent explicitly specified
+    const installTargets = explicitAgent ? agents : ALL_AGENTS;
+    for (const agent of installTargets) {
       if (isLocalPath(param)) {
         installFromLocalPath(param, agent, dryRun);
       } else if (isGitHubUrl(param)) {
