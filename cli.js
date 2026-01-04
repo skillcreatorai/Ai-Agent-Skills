@@ -24,7 +24,7 @@ const AGENT_PATHS = {
   copilot: path.join(process.cwd(), '.github', 'skills'),
   project: path.join(process.cwd(), '.skills'),
   goose: path.join(os.homedir(), '.config', 'goose', 'skills'),
-  opencode: path.join(os.homedir(), '.opencode', 'skill'),
+  opencode: path.join(os.homedir(), '.config', 'opencode', 'skill'),
   codex: path.join(os.homedir(), '.codex', 'skills'),
   letta: path.join(os.homedir(), '.letta', 'skills'),
 };
@@ -68,6 +68,37 @@ function saveConfig(config) {
     error(`Failed to save config: ${e.message}`);
     return false;
   }
+}
+
+// ============ SKILL METADATA SUPPORT ============
+
+const SKILL_META_FILE = '.skill-meta.json';
+
+function writeSkillMeta(skillPath, meta) {
+  try {
+    const metaPath = path.join(skillPath, SKILL_META_FILE);
+    const metadata = {
+      ...meta,
+      installedAt: new Date().toISOString()
+    };
+    fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
+    return true;
+  } catch (e) {
+    // Non-fatal - skill still works without metadata
+    return false;
+  }
+}
+
+function readSkillMeta(skillPath) {
+  try {
+    const metaPath = path.join(skillPath, SKILL_META_FILE);
+    if (fs.existsSync(metaPath)) {
+      return JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+    }
+  } catch (e) {
+    // Ignore - treat as legacy skill
+  }
+  return null;
 }
 
 // ============ SECURITY VALIDATION ============
@@ -367,6 +398,12 @@ function installSkill(skillName, agent = 'claude', dryRun = false) {
 
     copyDir(sourcePath, destPath);
 
+    // Write metadata for update tracking
+    writeSkillMeta(destPath, {
+      source: 'registry',
+      name: skillName
+    });
+
     success(`\nInstalled: ${skillName}`);
     info(`Agent: ${agent}`);
     info(`Location: ${destPath}`);
@@ -474,32 +511,18 @@ function listInstalledSkills(agent = 'claude') {
   log(`${colors.dim}Uninstall: npx ai-agent-skills uninstall <name> --agent ${agent}${colors.reset}`);
 }
 
-function updateSkill(skillName, agent = 'claude', dryRun = false) {
-  try {
-    validateSkillName(skillName);
-  } catch (e) {
-    error(e.message);
-    return false;
-  }
-
+// Update from bundled registry
+function updateFromRegistry(skillName, agent, destPath, dryRun) {
   const sourcePath = path.join(SKILLS_DIR, skillName);
-  const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
-  const destPath = path.join(destDir, skillName);
 
   if (!fs.existsSync(sourcePath)) {
     error(`Skill "${skillName}" not found in repository.`);
     return false;
   }
 
-  if (!fs.existsSync(destPath)) {
-    error(`Skill "${skillName}" is not installed for ${agent}.`);
-    log(`\nUse 'install' to add it first.`);
-    return false;
-  }
-
   if (dryRun) {
     log(`\n${colors.bold}Dry Run${colors.reset} (no changes made)\n`);
-    info(`Would update: ${skillName}`);
+    info(`Would update: ${skillName} (from registry)`);
     info(`Agent: ${agent}`);
     info(`Path: ${destPath}`);
     return true;
@@ -509,6 +532,12 @@ function updateSkill(skillName, agent = 'claude', dryRun = false) {
     fs.rmSync(destPath, { recursive: true });
     copyDir(sourcePath, destPath);
 
+    // Write metadata
+    writeSkillMeta(destPath, {
+      source: 'registry',
+      name: skillName
+    });
+
     success(`\nUpdated: ${skillName}`);
     info(`Agent: ${agent}`);
     info(`Location: ${destPath}`);
@@ -516,6 +545,137 @@ function updateSkill(skillName, agent = 'claude', dryRun = false) {
   } catch (e) {
     error(`Failed to update skill: ${e.message}`);
     return false;
+  }
+}
+
+// Update from GitHub repository
+function updateFromGitHub(meta, skillName, agent, destPath, dryRun) {
+  const { execFileSync } = require('child_process');
+  const repo = meta.repo;
+
+  if (dryRun) {
+    log(`\n${colors.bold}Dry Run${colors.reset} (no changes made)\n`);
+    info(`Would update: ${skillName} (from github:${repo})`);
+    info(`Agent: ${agent}`);
+    info(`Path: ${destPath}`);
+    return true;
+  }
+
+  const tempDir = path.join(os.tmpdir(), `ai-skills-update-${Date.now()}`);
+
+  try {
+    info(`Updating ${skillName} from ${repo}...`);
+    const repoUrl = `https://github.com/${repo}.git`;
+    execFileSync('git', ['clone', '--depth', '1', repoUrl, tempDir], { stdio: 'pipe' });
+
+    // Determine source path in cloned repo
+    let sourcePath;
+    if (meta.isRootSkill) {
+      sourcePath = tempDir;
+    } else if (meta.skillPath) {
+      // Check if skills/ subdirectory exists
+      const skillsSubdir = path.join(tempDir, 'skills', meta.skillPath);
+      const directPath = path.join(tempDir, meta.skillPath);
+      sourcePath = fs.existsSync(skillsSubdir) ? skillsSubdir : directPath;
+    } else {
+      sourcePath = tempDir;
+    }
+
+    if (!fs.existsSync(sourcePath) || !fs.existsSync(path.join(sourcePath, 'SKILL.md'))) {
+      error(`Skill not found in repository ${repo}`);
+      fs.rmSync(tempDir, { recursive: true });
+      return false;
+    }
+
+    fs.rmSync(destPath, { recursive: true });
+    copyDir(sourcePath, destPath);
+
+    // Preserve metadata
+    writeSkillMeta(destPath, meta);
+
+    fs.rmSync(tempDir, { recursive: true });
+
+    success(`\nUpdated: ${skillName}`);
+    info(`Source: github:${repo}`);
+    info(`Agent: ${agent}`);
+    info(`Location: ${destPath}`);
+    return true;
+  } catch (e) {
+    error(`Failed to update from GitHub: ${e.message}`);
+    try { fs.rmSync(tempDir, { recursive: true }); } catch {}
+    return false;
+  }
+}
+
+// Update from local path
+function updateFromLocalPath(meta, skillName, agent, destPath, dryRun) {
+  const sourcePath = meta.path;
+
+  if (!fs.existsSync(sourcePath)) {
+    error(`Source path no longer exists: ${sourcePath}`);
+    return false;
+  }
+
+  if (dryRun) {
+    log(`\n${colors.bold}Dry Run${colors.reset} (no changes made)\n`);
+    info(`Would update: ${skillName} (from local:${sourcePath})`);
+    info(`Agent: ${agent}`);
+    info(`Path: ${destPath}`);
+    return true;
+  }
+
+  try {
+    fs.rmSync(destPath, { recursive: true });
+    copyDir(sourcePath, destPath);
+
+    // Preserve metadata
+    writeSkillMeta(destPath, meta);
+
+    success(`\nUpdated: ${skillName}`);
+    info(`Source: local:${sourcePath}`);
+    info(`Agent: ${agent}`);
+    info(`Location: ${destPath}`);
+    return true;
+  } catch (e) {
+    error(`Failed to update from local path: ${e.message}`);
+    return false;
+  }
+}
+
+function updateSkill(skillName, agent = 'claude', dryRun = false) {
+  try {
+    validateSkillName(skillName);
+  } catch (e) {
+    error(e.message);
+    return false;
+  }
+
+  const destDir = AGENT_PATHS[agent] || AGENT_PATHS.claude;
+  const destPath = path.join(destDir, skillName);
+
+  if (!fs.existsSync(destPath)) {
+    error(`Skill "${skillName}" is not installed for ${agent}.`);
+    log(`\nUse 'install' to add it first.`);
+    return false;
+  }
+
+  // Read metadata to determine source
+  const meta = readSkillMeta(destPath);
+
+  if (!meta) {
+    // Legacy skill without metadata - try registry
+    return updateFromRegistry(skillName, agent, destPath, dryRun);
+  }
+
+  // Route to correct update method based on source
+  switch (meta.source) {
+    case 'github':
+      return updateFromGitHub(meta, skillName, agent, destPath, dryRun);
+    case 'local':
+      return updateFromLocalPath(meta, skillName, agent, destPath, dryRun);
+    case 'registry':
+    default:
+      return updateFromRegistry(skillName, agent, destPath, dryRun);
   }
 }
 
@@ -910,6 +1070,14 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
       }
 
       copyDir(skillPath, destPath);
+
+      // Write metadata for update tracking
+      writeSkillMeta(destPath, {
+        source: 'github',
+        repo: `${owner}/${repo}`,
+        skillPath: skillName
+      });
+
       success(`\nInstalled: ${skillName} from ${owner}/${repo}`);
       info(`Location: ${destPath}`);
     } else if (isRootSkill) {
@@ -933,6 +1101,14 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
       }
 
       copyDir(tempDir, destPath);
+
+      // Write metadata for update tracking
+      writeSkillMeta(destPath, {
+        source: 'github',
+        repo: `${owner}/${repo}`,
+        isRootSkill: true
+      });
+
       success(`\nInstalled: ${skillName} from ${owner}/${repo}`);
       info(`Location: ${destPath}`);
     } else {
@@ -952,6 +1128,14 @@ async function installFromGitHub(source, agent = 'claude', dryRun = false) {
             }
 
             copyDir(skillPath, destPath);
+
+            // Write metadata for update tracking
+            writeSkillMeta(destPath, {
+              source: 'github',
+              repo: `${owner}/${repo}`,
+              skillPath: entry.name
+            });
+
             log(`  ${colors.green}✓${colors.reset} ${entry.name}`);
             installed++;
           }
@@ -1010,6 +1194,13 @@ function installFromLocalPath(source, agent = 'claude', dryRun = false) {
     }
 
     copyDir(sourcePath, destPath);
+
+    // Write metadata for update tracking
+    writeSkillMeta(destPath, {
+      source: 'local',
+      path: sourcePath
+    });
+
     success(`\nInstalled: ${skillName} from local path`);
     info(`Location: ${destPath}`);
   } else {
@@ -1029,6 +1220,13 @@ function installFromLocalPath(source, agent = 'claude', dryRun = false) {
           }
 
           copyDir(skillPath, destPath);
+
+          // Write metadata for update tracking
+          writeSkillMeta(destPath, {
+            source: 'local',
+            path: skillPath
+          });
+
           log(`  ${colors.green}✓${colors.reset} ${entry.name}`);
           installed++;
         }
