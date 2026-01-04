@@ -77,9 +77,13 @@ const SKILL_META_FILE = '.skill-meta.json';
 function writeSkillMeta(skillPath, meta) {
   try {
     const metaPath = path.join(skillPath, SKILL_META_FILE);
+    const now = new Date().toISOString();
     const metadata = {
       ...meta,
-      installedAt: new Date().toISOString()
+      // Preserve original installedAt if it exists, otherwise set it
+      installedAt: meta.installedAt || now,
+      // Always update the updatedAt timestamp
+      updatedAt: now
     };
     fs.writeFileSync(metaPath, JSON.stringify(metadata, null, 2));
     return true;
@@ -553,6 +557,13 @@ function updateFromGitHub(meta, skillName, agent, destPath, dryRun) {
   const { execFileSync } = require('child_process');
   const repo = meta.repo;
 
+  // Validate repo format
+  if (!repo || typeof repo !== 'string' || !repo.includes('/')) {
+    error(`Invalid repository in metadata: ${repo}`);
+    error(`Try reinstalling the skill from GitHub.`);
+    return false;
+  }
+
   if (dryRun) {
     log(`\n${colors.bold}Dry Run${colors.reset} (no changes made)\n`);
     info(`Would update: ${skillName} (from github:${repo})`);
@@ -611,8 +622,20 @@ function updateFromGitHub(meta, skillName, agent, destPath, dryRun) {
 function updateFromLocalPath(meta, skillName, agent, destPath, dryRun) {
   const sourcePath = meta.path;
 
+  if (!sourcePath || typeof sourcePath !== 'string') {
+    error(`Invalid path in metadata.`);
+    error(`Try reinstalling the skill from the local path.`);
+    return false;
+  }
+
   if (!fs.existsSync(sourcePath)) {
     error(`Source path no longer exists: ${sourcePath}`);
+    return false;
+  }
+
+  // Verify it's still a valid skill directory
+  if (!fs.existsSync(path.join(sourcePath, 'SKILL.md'))) {
+    error(`Source is no longer a valid skill (missing SKILL.md): ${sourcePath}`);
     return false;
   }
 
