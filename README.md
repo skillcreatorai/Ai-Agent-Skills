@@ -46,13 +46,13 @@ npx ai-agent-skills install anthropics/skills/pdf    # specific skill
 npx ai-agent-skills install ./my-custom-skill
 ```
 
-**One command. Every agent.** By default, skills install to Claude Code, Cursor, Codex, Amp, VS Code, Copilot, Goose, Letta, and OpenCode simultaneously.
+**One command. Every agent.** By default, skills install to Claude Code, Cursor, Codex, Amp, VS Code, Copilot, Goose, Letta, and OpenCode simultaneously. 
 
 ## Why This Exists
 
 Every major AI coding agent now supports skills. But they're scattered everywhere.
 
-This repo curates the best in one place. Quality over quantity. All skills follow the [Agent Skills spec](https://agentskills.io).
+We also created our own repo to cureate the best in one place. Quality over quantity https://www.skillcreator.ai/explore  All skills follow the [Agent Skills spec](https://agentskills.io).
 
 ## Compatible Agents
 
