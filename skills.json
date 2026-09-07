@@ -1,7 +1,7 @@
 {
   "version": "4.3.2",
-  "updated": "2026-08-17",
-  "total": 140,
+  "updated": "2026-09-07",
+  "total": 141,
   "workAreas": [
     {
       "id": "frontend",
@@ -4553,6 +4553,40 @@
       "distribution": "live",
       "notes": "",
       "labels": []
+    },
+    {
+      "name": "you-web",
+      "description": "Use You.com MCP tools for current web search, URL content extraction, cited web synthesis, and x402-aware web access.",
+      "category": "productivity",
+      "workArea": "workflow",
+      "branch": "Research & Writing",
+      "author": "youdotcom-oss",
+      "source": "youdotcom-oss/agent-skills",
+      "license": "MIT",
+      "tier": "upstream",
+      "distribution": "live",
+      "vendored": false,
+      "installSource": "youdotcom-oss/agent-skills/skills/you-web",
+      "requires": [],
+      "tags": [
+        "web-search",
+        "mcp",
+        "you.com",
+        "research"
+      ],
+      "featured": false,
+      "verified": false,
+      "origin": "curated",
+      "trust": "listed",
+      "syncMode": "live",
+      "sourceUrl": "https://github.com/youdotcom-oss/agent-skills/tree/main/skills/you-web",
+      "whyHere": "Covers cited web search and URL content extraction through the You.com MCP server, filling the web-research gap on the Research & Writing branch.",
+      "lastVerified": "",
+      "notes": "",
+      "labels": [],
+      "addedDate": "2026-09-07",
+      "lastCurated": "2026-09-07T00:00:00Z",
+      "path": ""
     }
   ]
 }

@@ -48,7 +48,7 @@ House copies stay flat under `skills/<name>/`. The catalog holds the real struct
 
 ## Workflow
 
-11 skills. Files, docs, planning, release work, and research-to-output flows.
+12 skills. Files, docs, planning, release work, and research-to-output flows.
 
 | Branch | Skills | Source |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ House copies stay flat under `skills/<name>/`. The catalog holds the real struct
 | Planning | `linear`, `notion-spec-to-implementation` | openai |
 | Release | `changelog-generator` | composio |
 | Release & Sharing | `share-a-library` | MoizIbnYousaf |
-| Research & Writing | `content-research-writer` | composio |
+| Research & Writing | `content-research-writer`, `you-web` | composio, youdotcom-oss |
 
 ## Agent Engineering
 
